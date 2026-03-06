@@ -193,3 +193,57 @@ class TestParquetStore:
         store.write("AAPL", "1d", data)
         result = store.missing_ranges("AAPL", "1d")
         assert len(result) == 1
+    
+    # delete
+    def test_delete_removes_file(self, store, sample_ohlcv):
+        store.write("AAPL", "1d", sample_ohlcv)
+        store.delete("AAPL", "1d")
+        assert not store._path("AAPL", "1d").exists()
+
+    def test_delete_nonexistent_silent(self, store):
+        store.delete("NONEXISTENT", "1d")  # should not raise
+
+    # available_symbols
+    def test_available_symbols_returns_list(self, store, sample_ohlcv):
+        store.write("AAPL", "1d", sample_ohlcv)
+        store.write("MSFT", "1d", sample_ohlcv)
+        result = store.available_symbols("1d")
+        assert set(result) == {"AAPL", "MSFT"}
+
+    def test_available_symbols_empty_timeframe(self, store):
+        result = store.available_symbols("1d")
+        assert result == []
+
+    def test_available_symbols_only_returns_correct_timeframe(self, store, sample_ohlcv):
+        store.write("AAPL", "1d", sample_ohlcv)
+        store.write("AAPL", "1h", sample_ohlcv)
+        result = store.available_symbols("1d")
+        assert result == ["AAPL"]
+
+    # available_timeframes
+    def test_available_timeframes_returns_list(self, store, sample_ohlcv):
+        store.write("AAPL", "1d", sample_ohlcv)
+        store.write("AAPL", "1h", sample_ohlcv)
+        result = store.available_timeframes("AAPL")
+        assert set(result) == {"1d", "1h"}
+
+    def test_available_timeframes_empty(self, store):
+        result = store.available_timeframes("AAPL")
+        assert result == []
+
+    def test_available_timeframes_only_returns_correct_symbol(self, store, sample_ohlcv):
+        store.write("AAPL", "1d", sample_ohlcv)
+        store.write("MSFT", "1d", sample_ohlcv)
+        result = store.available_timeframes("AAPL")
+        assert result == ["1d"]
+
+    # date_range
+    def test_date_range_returns_correct_bounds(self, store, sample_ohlcv):
+        store.write("AAPL", "1d", sample_ohlcv)
+        start, end = store.date_range("AAPL", "1d")
+        assert start == sample_ohlcv.index.min()
+        assert end == sample_ohlcv.index.max()
+
+    def test_date_range_nonexistent_raises(self, store):
+        with pytest.raises(FileNotFoundError):
+            store.date_range("NONEXISTENT", "1d")
