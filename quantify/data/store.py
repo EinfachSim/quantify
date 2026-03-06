@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 import pandas as pd
 from pathlib import Path
 import numpy as np
-from quantify.constants import CANONICAL_COLUMNS
+from quantify.constants import *
 
 class BaseStore(ABC):
 
@@ -127,12 +127,12 @@ class ParquetStore(BaseStore):
             end = end or stored_end
         
         df = self.read(symbol, timeframe, start=start, end=end)
-        expected_range = pd.date_range(start=start, end=end, freq=timeframe.lower(), tz="UTC")
+        expected_range = pd.date_range(start=start, end=end, freq=PANDAS_TIME_STR[timeframe.lower()], tz="UTC")
         missing_dates = expected_range[~expected_range.isin(df.index)]
         if len(missing_dates) == 0:
             return []
         gaps = np.diff(missing_dates)
-        split_points = np.where(gaps > pd.Timedelta(timeframe.lower()))[0] + 1
+        split_points = np.where(gaps > pd.Timedelta(PANDAS_TIME_STR[timeframe.lower()]))[0] + 1
         groups = np.split(missing_dates, split_points)
         ranges = [(g[0], g[-1]) for g in groups if len(g) > 0]
         return ranges
