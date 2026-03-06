@@ -75,10 +75,16 @@ class ParquetStore(BaseStore):
         pass
 
     # Reading
-    def read(self, symbol, timeframe, start, end) -> pd.DataFrame:
-        pass
+    def read(self, symbol, timeframe, start=None, end=None) -> pd.DataFrame:
+        path = self._path(symbol, timeframe)
+        tmp_df = pd.read_parquet(path)
+        if start:
+            tmp_df = tmp_df[tmp_df.index >= start]
+        if end:
+            tmp_df = tmp_df[tmp_df.index <= end]
+        return tmp_df
 
-    def read_many(self, symbols, timeframe, start, end) -> pd.DataFrame:
+    def read_many(self, symbols, timeframe, start=None, end=None) -> pd.DataFrame:
         pass
 
     # Info

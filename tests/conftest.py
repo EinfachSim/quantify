@@ -14,4 +14,5 @@ def sample_ohlcv():
         "volume": np.random.uniform(1e6, 1e7, 10),
         "vwap":   np.random.uniform(100, 200, 10),
     }, index=index)
+    df.index.freq = None
     return df
