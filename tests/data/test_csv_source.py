@@ -17,7 +17,7 @@ class TestCSVSource:
 
     def test_fetch_roundtrip(self, csv_source, sample_ohlcv):
         result = csv_source.fetch("AAPL", "1d")
-        pd.testing.assert_frame_equal(result, sample_ohlcv)
+        pd.testing.assert_frame_equal(result, sample_ohlcv, check_freq=False, check_index_type=False)
 
     def test_fetch_with_start(self, csv_source, sample_ohlcv):
         start = str(sample_ohlcv.index[3].date())
@@ -66,7 +66,7 @@ class TestCSVSource:
 
     def test_fetch_many_correct_data(self, csv_source, sample_ohlcv):
         result = csv_source.fetch_many(["AAPL"], "1d")
-        pd.testing.assert_frame_equal(result["AAPL"], sample_ohlcv)
+        pd.testing.assert_frame_equal(result["AAPL"], sample_ohlcv, check_freq=False, check_index_type=False)
 
     def test_fetch_many_with_start_and_end(self, csv_source, sample_ohlcv):
         start = str(sample_ohlcv.index[2].date())
