@@ -1,4 +1,5 @@
 from quantify.features.base import BaseFeature
+import pandas as pd
 
 class MomentumFeature(BaseFeature):
     def __init__(self, period=20):
@@ -44,3 +45,26 @@ class RSIFeature(BaseFeature):
         rsi = df.groupby(level=0)["close"].transform(rsi_calc)
 
         return rsi.rename(self.name).to_frame()
+
+class BollingerBandsFeature(BaseFeature):
+    def __init__(self, period=20):
+        self.period = period
+
+    @property
+    def name(self):
+        return f"bb_{self.period}"
+
+    def compute(self, df):
+        def bb_calc(close):
+            roll = close.rolling(self.period)
+            middle = roll.mean()
+            std = roll.std()
+            upper = middle + 2*std
+            lower = middle - 2*std
+            bb_position = (close - lower)/(upper - lower)
+            return pd.DataFrame({
+                f"bb_upper_{self.period}": upper,
+                f"bb_lower_{self.period}": lower,
+                f"bb_position_{self.period}": bb_position,
+            })
+        return df.groupby(level=0, group_keys=False)["close"].apply(bb_calc)
