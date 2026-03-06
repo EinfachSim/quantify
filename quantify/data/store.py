@@ -93,7 +93,18 @@ class ParquetStore(BaseStore):
         return tmp_df
 
     def read_many(self, symbols, timeframe, start=None, end=None) -> pd.DataFrame:
-        pass
+        if not symbols:
+            return pd.DataFrame()
+        dfs = []
+        for s in symbols:
+            try:
+                dfs.append(self.read(s, timeframe, start=start, end=end))
+            except(FileNotFoundError):
+                raise FileNotFoundError(f"Symbol {s} not found in store!")
+        
+        return pd.concat(dfs, keys=symbols)
+
+
 
     # Info
     def available_symbols(self, timeframe) -> list[str]:

@@ -102,6 +102,43 @@ class TestParquetStore:
         store.append("AAPL", "1d", sample_ohlcv)   # no prior write
         result = store.read("AAPL", "1d")
         pd.testing.assert_frame_equal(result, sample_ohlcv)
+    
+    def test_read_many_returns_multiindex(self, store, sample_ohlcv):
+        store.write("AAPL", "1d", sample_ohlcv)
+        store.write("MSFT", "1d", sample_ohlcv)
+        result = store.read_many(["AAPL", "MSFT"], "1d")
+        assert isinstance(result.index, pd.MultiIndex)
+
+    def test_read_many_correct_symbols_in_index(self, store, sample_ohlcv):
+        store.write("AAPL", "1d", sample_ohlcv)
+        store.write("MSFT", "1d", sample_ohlcv)
+        result = store.read_many(["AAPL", "MSFT"], "1d")
+        assert set(result.index.get_level_values(0)) == {"AAPL", "MSFT"}
+
+    def test_read_many_correct_data(self, store, sample_ohlcv):
+        store.write("AAPL", "1d", sample_ohlcv)
+        store.write("MSFT", "1d", sample_ohlcv)
+        result = store.read_many(["AAPL", "MSFT"], "1d")
+        pd.testing.assert_frame_equal(result.loc["AAPL"], sample_ohlcv)
+
+    def test_read_many_with_start_and_end(self, store, sample_ohlcv):
+        store.write("AAPL", "1d", sample_ohlcv)
+        store.write("MSFT", "1d", sample_ohlcv)
+        start = str(sample_ohlcv.index[2].date())
+        end = str(sample_ohlcv.index[7].date())
+        result = store.read_many(["AAPL", "MSFT"], "1d", start=start, end=end)
+        assert result.loc["AAPL"].index.min() >= pd.Timestamp(start, tz="UTC")
+        assert result.loc["AAPL"].index.max() <= pd.Timestamp(end, tz="UTC")
+
+    def test_read_many_empty_symbols_returns_empty(self, store):
+        result = store.read_many([], "1d")
+        assert isinstance(result, pd.DataFrame)
+        assert len(result) == 0
+
+    def test_read_many_missing_symbol_raises(self, store, sample_ohlcv):
+        store.write("AAPL", "1d", sample_ohlcv)
+        with pytest.raises(FileNotFoundError):
+            store.read_many(["AAPL", "NONEXISTENT"], "1d")
 
     def test_available_symbols(self, store, sample_ohlcv):
         pass
