@@ -1,27 +1,16 @@
-from quantify.data.store import ParquetStore
 from quantify.data.source import YahooFinanceSource
-import pandas as pd
-import numpy as np
-
-index = pd.date_range("2024-01-01", periods=10, freq="D", tz="UTC")
-df = pd.DataFrame({
-        "open":   np.random.uniform(100, 200, 10),
-        "high":   np.random.uniform(100, 200, 10),
-        "low":    np.random.uniform(100, 200, 10),
-        "close":  np.random.uniform(100, 200, 10),
-        "volume": np.random.uniform(1e6, 1e7, 10),
-        "vwap":   np.random.uniform(100, 200, 10),
-    }, index=index)
-df.index.freq = None
-
-store = ParquetStore("data/parquet")
-store.write("AAPL", "1d", df)
-store.write("GOOGLE", "1d", df)
-
-store.read_many(["AAPL","GOOGLE"], "1d")
-
-store.info()
+from quantify.data.store import ParquetStore
+from quantify.data.manager import DataManager
+from quantify.features.technical import MomentumFeature
 
 source = YahooFinanceSource()
+store = ParquetStore("./data/parquet")
+manager = DataManager(source, store)
 
-source.fetch("AAPL", "1d", start="2024-01-01", end="2024-12-30")
+manager.sync(["AAPL", "MSFT"], "1d", "2024-01-02", "2024-12-31")
+df = manager.get("AAPL", "1d")
+print(df.head())
+print(store.info())
+
+
+MomentumFeature(20).compute(df)

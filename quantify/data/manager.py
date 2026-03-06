@@ -19,8 +19,13 @@ class DataManager:
             else:
                 missing = self.store.missing_ranges(sym, timeframe, start, end)
                 for s,e in missing:
-                    df = self.source.fetch(sym, timeframe, s, e)
-                    self.store.append(sym, timeframe, df)
+                    if s == e:
+                        continue
+                    try:
+                        df = self.source.fetch(sym, timeframe, s, e)
+                        self.store.append(sym, timeframe, df)
+                    except ValueError:
+                        print(f"Warning: no data for {sym} {s} -> {e}, skipping...")
 
     def update(self, symbols,timeframe):
         end = pd.Timestamp.now(tz="UTC").date()

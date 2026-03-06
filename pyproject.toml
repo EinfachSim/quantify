@@ -10,6 +10,7 @@ dependencies = [
     "pandas",
     "pyarrow",
     "yfinance",
+    "exchange-calendars"
 ]
 
 [tool.setuptools.packages.find]

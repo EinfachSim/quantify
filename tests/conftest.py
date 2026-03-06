@@ -1,11 +1,12 @@
+import exchange_calendars as xcals
 import pytest
 import pandas as pd
 import numpy as np
-
 @pytest.fixture
 def sample_ohlcv():
-    """A small canonical OHLCV DataFrame for reuse across tests."""
-    index = pd.date_range("2024-01-01", periods=10, freq="D", tz="UTC")
+    cal = xcals.get_calendar("XNYS")
+    sessions = cal.sessions_in_range("2024-01-01", "2024-01-20")[:10]
+    index = pd.DatetimeIndex(sessions).tz_localize("UTC")
     df = pd.DataFrame({
         "open":   np.random.uniform(100, 200, 10),
         "high":   np.random.uniform(100, 200, 10),

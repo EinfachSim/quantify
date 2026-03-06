@@ -3,6 +3,7 @@ import pandas as pd
 from pathlib import Path
 import numpy as np
 from quantify.constants import *
+import exchange_calendars as xcals
 
 class BaseStore(ABC):
 
@@ -120,23 +121,44 @@ class ParquetStore(BaseStore):
         df = self.read(symbol, timeframe)
         return (df.index.min(), df.index.max())
 
-    def missing_ranges(self, symbol, timeframe, start=None, end=None) -> list[tuple[str, str]]:
+    def missing_ranges(self, symbol: str, timeframe: str, start=None, end=None) -> list[tuple]:
         if start is None or end is None:
             stored_start, stored_end = self.date_range(symbol, timeframe)
             start = start or stored_start
             end = end or stored_end
-        
+
+        if timeframe.lower() == "1d":
+            cal = xcals.get_calendar(DEFAULT_CALENDAR)
+            # strip timezone for exchange_calendars
+            start_naive = pd.Timestamp(start).tz_localize(None) if pd.Timestamp(start).tzinfo is None else pd.Timestamp(start).tz_convert(None)
+            end_naive = pd.Timestamp(end).tz_localize(None) if pd.Timestamp(end).tzinfo is None else pd.Timestamp(end).tz_convert(None)
+            expected = pd.DatetimeIndex(cal.sessions_in_range(start_naive, end_naive)).tz_localize("UTC")
+        else:
+            expected = pd.date_range(start=start, end=end, freq=timeframe.lower(), tz="UTC")
+
         df = self.read(symbol, timeframe, start=start, end=end)
-        expected_range = pd.date_range(start=start, end=end, freq=PANDAS_TIME_STR[timeframe.lower()], tz="UTC")
-        missing_dates = expected_range[~expected_range.isin(df.index)]
+        missing_dates = expected[~expected.isin(df.index)]
+
         if len(missing_dates) == 0:
             return []
-        gaps = np.diff(missing_dates)
-        split_points = np.where(gaps > pd.Timedelta(PANDAS_TIME_STR[timeframe.lower()]))[0] + 1
-        groups = np.split(missing_dates, split_points)
-        ranges = [(g[0], g[-1]) for g in groups if len(g) > 0]
-        return ranges
 
+        if timeframe.lower() == "1d":
+            cal = xcals.get_calendar(DEFAULT_CALENDAR)
+            gaps = np.array([
+                len(cal.sessions_in_range(
+                    missing_dates[i].tz_convert(None),
+                    missing_dates[i+1].tz_convert(None)
+                )) > 2
+                for i in range(len(missing_dates)-1)
+            ])
+            split_points = np.where(gaps)[0] + 1
+        else:
+            gaps = np.diff(missing_dates)
+            split_points = np.where(gaps > pd.Timedelta(PANDAS_TIME_STR[timeframe.lower()]))[0] + 1
+
+        groups = np.split(missing_dates, split_points)
+        return [(g[0], g[-1]) for g in groups if len(g) > 0]
+    
     def delete(self, symbol, timeframe) -> None:
         path = self._path(symbol, timeframe)
         if path.exists():
