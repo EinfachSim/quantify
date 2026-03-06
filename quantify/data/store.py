@@ -144,4 +144,21 @@ class ParquetStore(BaseStore):
             path.unlink()
 
     def info(self) -> dict:
-        pass
+        all_data = self.root.glob("*/*.parquet")
+        result = {}
+        timeframes = set()
+        for dp in all_data:
+            tf_s = self.available_timeframes(dp.stem)
+            timeframes.update(tf_s)
+        for tf in timeframes:
+            result[tf] = {}
+            symbols = self.available_symbols(tf)
+            for symbol in symbols:
+                start, end = self.date_range(symbol, tf)
+                df = self.read(symbol, tf)
+                result[tf][symbol] = {
+                    "start": start,
+                    "end": end,
+                    "rows": len(df)
+                }
+        return result

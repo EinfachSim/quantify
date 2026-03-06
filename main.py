@@ -19,9 +19,4 @@ store.write("GOOGLE", "1d", df)
 
 store.read_many(["AAPL","GOOGLE"], "1d")
 
-print(store.available_symbols("1d"))
-print(store.available_timeframes("AAPL"))
-
-print(store.date_range("AAPL", "1d"))
-
-print(store.missing_ranges("AAPL", "1h"))
+store.info()

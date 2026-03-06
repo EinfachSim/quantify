@@ -247,3 +247,40 @@ class TestParquetStore:
     def test_date_range_nonexistent_raises(self, store):
         with pytest.raises(FileNotFoundError):
             store.date_range("NONEXISTENT", "1d")
+    
+    def test_info_returns_dict(self, store, sample_ohlcv):
+        store.write("AAPL", "1d", sample_ohlcv)
+        result = store.info()
+        assert isinstance(result, dict)
+
+    def test_info_correct_structure(self, store, sample_ohlcv):
+        store.write("AAPL", "1d", sample_ohlcv)
+        result = store.info()
+        assert "1d" in result
+        assert "AAPL" in result["1d"]
+        assert "start" in result["1d"]["AAPL"]
+        assert "end" in result["1d"]["AAPL"]
+        assert "rows" in result["1d"]["AAPL"]
+
+    def test_info_correct_values(self, store, sample_ohlcv):
+        store.write("AAPL", "1d", sample_ohlcv)
+        result = store.info()
+        assert result["1d"]["AAPL"]["start"] == sample_ohlcv.index.min()
+        assert result["1d"]["AAPL"]["end"] == sample_ohlcv.index.max()
+        assert result["1d"]["AAPL"]["rows"] == len(sample_ohlcv)
+
+    def test_info_multiple_symbols(self, store, sample_ohlcv):
+        store.write("AAPL", "1d", sample_ohlcv)
+        store.write("MSFT", "1d", sample_ohlcv)
+        result = store.info()
+        assert set(result["1d"].keys()) == {"AAPL", "MSFT"}
+
+    def test_info_multiple_timeframes(self, store, sample_ohlcv):
+        store.write("AAPL", "1d", sample_ohlcv)
+        store.write("AAPL", "1h", sample_ohlcv)
+        result = store.info()
+        assert set(result.keys()) == {"1d", "1h"}
+
+    def test_info_empty_store(self, store):
+        result = store.info()
+        assert result == {}
