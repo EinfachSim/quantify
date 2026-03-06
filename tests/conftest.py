@@ -17,3 +17,10 @@ def sample_ohlcv():
     }, index=index)
     df.index.freq = None
     return df
+
+@pytest.fixture
+def multi_index_ohlcv(sample_ohlcv):
+    """MultiIndex (symbol, datetime) DataFrame with two symbols."""
+    msft = sample_ohlcv.copy()
+    aapl = sample_ohlcv.copy()
+    return pd.concat({"AAPL": aapl, "MSFT": msft})
