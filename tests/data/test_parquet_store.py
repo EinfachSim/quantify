@@ -140,20 +140,56 @@ class TestParquetStore:
         with pytest.raises(FileNotFoundError):
             store.read_many(["AAPL", "NONEXISTENT"], "1d")
 
-    def test_available_symbols(self, store, sample_ohlcv):
-        pass
+    def test_missing_ranges_no_gaps(self, store, sample_ohlcv):
+        store.write("AAPL", "1d", sample_ohlcv)
+        start = str(sample_ohlcv.index[0].date())
+        end = str(sample_ohlcv.index[-1].date())
+        result = store.missing_ranges("AAPL", "1d", start=start, end=end)
+        assert result == []
 
-    def test_date_range(self, store, sample_ohlcv):
-        pass
+    def test_missing_ranges_gap_in_middle(self, store, sample_ohlcv):
+        # write data with a gap in the middle
+        no_gap = pd.concat([sample_ohlcv.iloc[:3], sample_ohlcv.iloc[6:]])
+        store.write("AAPL", "1d", no_gap)
+        start = str(sample_ohlcv.index[0].date())
+        end = str(sample_ohlcv.index[-1].date())
+        result = store.missing_ranges("AAPL", "1d", start=start, end=end)
+        assert len(result) == 1
+        assert result[0][0] == sample_ohlcv.index[3]
+        assert result[0][1] == sample_ohlcv.index[5]
 
-    def test_missing_ranges(self, store, sample_ohlcv):
-        pass
+    def test_missing_ranges_gap_at_start(self, store, sample_ohlcv):
+        store.write("AAPL", "1d", sample_ohlcv.iloc[3:])
+        start = str(sample_ohlcv.index[0].date())
+        end = str(sample_ohlcv.index[-1].date())
+        result = store.missing_ranges("AAPL", "1d", start=start, end=end)
+        assert len(result) == 1
+        assert result[0][0] == sample_ohlcv.index[0]
+        assert result[0][1] == sample_ohlcv.index[2]
 
-    def test_overwrite_behavior(self, store, sample_ohlcv):
-        pass
+    def test_missing_ranges_gap_at_end(self, store, sample_ohlcv):
+        store.write("AAPL", "1d", sample_ohlcv.iloc[:7])
+        start = str(sample_ohlcv.index[0].date())
+        end = str(sample_ohlcv.index[-1].date())
+        result = store.missing_ranges("AAPL", "1d", start=start, end=end)
+        assert len(result) == 1
+        assert result[0][0] == sample_ohlcv.index[7]
+        assert result[0][1] == sample_ohlcv.index[-1]
 
-    def test_empty_read_returns_empty_dataframe(self, store):
-        pass
+    def test_missing_ranges_multiple_gaps(self, store, sample_ohlcv):
+        # keep only rows 0,1,2 and 6,7,8 — gap at 3,4,5
+        data = pd.concat([sample_ohlcv.iloc[:3], sample_ohlcv.iloc[6:9]])
+        store.write("AAPL", "1d", data)
+        start = str(sample_ohlcv.index[0].date())
+        end = str(sample_ohlcv.index[8].date())
+        result = store.missing_ranges("AAPL", "1d", start=start, end=end)
+        assert len(result) == 1
+        assert result[0][0] == sample_ohlcv.index[3]
+        assert result[0][1] == sample_ohlcv.index[5]
 
-    def test_schema_enforcement(self, store):
-        pass
+    def test_missing_ranges_no_args_uses_stored_range(self, store, sample_ohlcv):
+        # gap in middle, no start/end passed
+        data = pd.concat([sample_ohlcv.iloc[:3], sample_ohlcv.iloc[6:]])
+        store.write("AAPL", "1d", data)
+        result = store.missing_ranges("AAPL", "1d")
+        assert len(result) == 1

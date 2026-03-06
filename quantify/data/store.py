@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 import pandas as pd
 from pathlib import Path
+import numpy as np
 
 CANONICAL_COLUMNS = ["open", "high", "low", "close", "volume", "vwap"]
 
@@ -108,19 +109,39 @@ class ParquetStore(BaseStore):
 
     # Info
     def available_symbols(self, timeframe) -> list[str]:
-        pass
+        path = self.root / timeframe.lower()
+        if not path.exists():
+            return []
+        return [x.stem for x in path.glob("*.parquet")]
 
     def available_timeframes(self, symbol) -> list[str]:
-        pass
+        return [x.parent.stem for x in self.root.glob(f"*/{symbol.upper()}.parquet")]
 
-    def date_range(self, symbol, timeframe) -> tuple[str, str]:
-        pass
+    def date_range(self, symbol, timeframe) -> tuple[pd.Timestamp, pd.Timestamp]:
+        df = self.read(symbol, timeframe)
+        return (df.index.min(), df.index.max())
 
-    def missing_ranges(self, symbol, timeframe, start, end) -> list[tuple[str, str]]:
-        pass
+    def missing_ranges(self, symbol, timeframe, start=None, end=None) -> list[tuple[str, str]]:
+        if start is None or end is None:
+            stored_start, stored_end = self.date_range(symbol, timeframe)
+            start = start or stored_start
+            end = end or stored_end
+        
+        df = self.read(symbol, timeframe, start=start, end=end)
+        expected_range = pd.date_range(start=start, end=end, freq=timeframe.lower(), tz="UTC")
+        missing_dates = expected_range[~expected_range.isin(df.index)]
+        if len(missing_dates) == 0:
+            return []
+        gaps = np.diff(missing_dates)
+        split_points = np.where(gaps > expected_range.freq)[0] + 1
+        groups = np.split(missing_dates, split_points)
+        ranges = [(g[0], g[-1]) for g in groups if len(g) > 0]
+        return ranges
 
     def delete(self, symbol, timeframe) -> None:
-        pass
+        path = self._path(symbol, timeframe)
+        if path.exists():
+            path.unlink()
 
     def info(self) -> dict:
         pass
