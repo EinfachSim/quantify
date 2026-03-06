@@ -72,7 +72,15 @@ class ParquetStore(BaseStore):
         df.to_parquet(path)
     
     def append(self, symbol, timeframe, df) -> None:
-        pass
+        try:
+            old_df = self.read(symbol, timeframe)
+            combined = pd.concat([old_df, df])
+            combined = combined[~combined.index.duplicated(keep="last")]
+            combined = combined.sort_index()
+        except(FileNotFoundError):
+            combined = df
+        self.write(symbol, timeframe, combined)
+
 
     # Reading
     def read(self, symbol, timeframe, start=None, end=None) -> pd.DataFrame:

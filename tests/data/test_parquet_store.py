@@ -67,6 +67,41 @@ class TestParquetStore:
     def test_read_file_not_found_raises(self, store):
         with pytest.raises(FileNotFoundError):
             store.read("NONEXISTENT", "1d")
+    
+    def test_append_to_existing(self, store, sample_ohlcv):
+        first_half = sample_ohlcv.iloc[:5]
+        second_half = sample_ohlcv.iloc[5:]
+        store.write("AAPL", "1d", first_half)
+        store.append("AAPL", "1d", second_half)
+        result = store.read("AAPL", "1d")
+        pd.testing.assert_frame_equal(result, sample_ohlcv)
+
+    def test_append_sorts_index(self, store, sample_ohlcv):
+        first_half = sample_ohlcv.iloc[:5]
+        second_half = sample_ohlcv.iloc[5:]
+        store.write("AAPL", "1d", second_half)   # write later data first
+        store.append("AAPL", "1d", first_half)   # append earlier data
+        result = store.read("AAPL", "1d")
+        assert result.index.is_monotonic_increasing
+
+    def test_append_drops_duplicates(self, store, sample_ohlcv):
+        store.write("AAPL", "1d", sample_ohlcv)
+        store.append("AAPL", "1d", sample_ohlcv)   # append same data again
+        result = store.read("AAPL", "1d")
+        assert len(result) == len(sample_ohlcv)
+
+    def test_append_duplicate_keeps_last(self, store, sample_ohlcv):
+        store.write("AAPL", "1d", sample_ohlcv)
+        new_data = sample_ohlcv.iloc[-3:].copy()
+        new_data["close"] = 99999.0                # modify close so we can verify which was kept
+        store.append("AAPL", "1d", new_data)
+        result = store.read("AAPL", "1d")
+        assert (result.iloc[-3:]["close"] == 99999.0).all()
+
+    def test_append_to_nonexistent_creates_file(self, store, sample_ohlcv):
+        store.append("AAPL", "1d", sample_ohlcv)   # no prior write
+        result = store.read("AAPL", "1d")
+        pd.testing.assert_frame_equal(result, sample_ohlcv)
 
     def test_available_symbols(self, store, sample_ohlcv):
         pass
