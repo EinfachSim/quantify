@@ -1,0 +1,1 @@
+CANONICAL_COLUMNS = ["open", "high", "low", "close", "volume", "vwap"]

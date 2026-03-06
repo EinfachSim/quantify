@@ -2,8 +2,7 @@ from abc import ABC, abstractmethod
 import pandas as pd
 from pathlib import Path
 import numpy as np
-
-CANONICAL_COLUMNS = ["open", "high", "low", "close", "volume", "vwap"]
+from quantify.constants import CANONICAL_COLUMNS
 
 class BaseStore(ABC):
 
