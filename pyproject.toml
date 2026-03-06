@@ -10,7 +10,8 @@ dependencies = [
     "pandas",
     "pyarrow",
     "yfinance",
-    "exchange-calendars"
+    "exchange-calendars",
+    "matplotlib"
 ]
 
 [tool.setuptools.packages.find]
