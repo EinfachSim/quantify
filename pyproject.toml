@@ -12,6 +12,9 @@ dependencies = [
     "yfinance",
 ]
 
+[tool.setuptools.packages.find]
+include = ["quantify*"]
+
 [project.optional-dependencies]
 dev = [
     "pytest",

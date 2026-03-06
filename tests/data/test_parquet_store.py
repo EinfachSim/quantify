@@ -1,15 +1,38 @@
 import pytest
 import pandas as pd
 
-# from quantlib.data.store import ParquetStore  # uncomment when ready
+from quantify.data.store import ParquetStore
 
 class TestParquetStore:
 
     @pytest.fixture
     def store(self, tmp_path):
-        # tmp_path is a built-in pytest fixture — unique temp dir per test
-        # return ParquetStore(tmp_path)
-        pass
+        return ParquetStore(tmp_path)
+    
+    def test_write_creates_file(self, store, sample_ohlcv):
+        store.write("AAPL", "1d", sample_ohlcv)
+        expected_path = store.root / "1d" / "AAPL.parquet"
+        assert expected_path.exists()
+    
+    def test_write_correct_subdir(self, store, sample_ohlcv):
+        store.write("AAPL", "1h", sample_ohlcv)
+        expected_path = store.root / "1h" / "AAPL.parquet"
+        assert expected_path.exists()
+    
+    def test_write_invalid_schema_raises(self, store):
+        bad_df = pd.DataFrame({"wrong_col": [1, 2, 3]})
+        with pytest.raises(ValueError):
+            store.write("AAPL", "1d", bad_df)
+    
+    def test_write_uppercase_symbol(self, store, sample_ohlcv):
+        store.write("aapl", "1d", sample_ohlcv)
+        expected_path = store.root / "1d" / "AAPL.parquet"
+        assert expected_path.exists()
+    
+    def test_write_lowercase_timeframe(self, store, sample_ohlcv):
+        store.write("AAPL", "1D", sample_ohlcv)
+        expected_path = store.root / "1d" / "AAPL.parquet"
+        assert expected_path.exists()
 
     def test_write_read_roundtrip(self, store, sample_ohlcv):
         # store.write("AAPL", "1d", sample_ohlcv)

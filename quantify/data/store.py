@@ -1,5 +1,8 @@
 from abc import ABC, abstractmethod
 import pandas as pd
+from pathlib import Path
+
+CANONICAL_COLUMNS = ["open", "high", "low", "close", "volume", "vwap"]
 
 class BaseStore(ABC):
 
@@ -43,5 +46,56 @@ class BaseStore(ABC):
         pass
 
     @abstractmethod
+    def info(self) -> dict:
+        pass
+
+class ParquetStore(BaseStore):
+    def __init__(self, root):
+        super().__init__()
+        self.root = Path(root)
+        self.root.mkdir(exist_ok = True)
+
+    def _validate_schema(self, df: pd.DataFrame) -> None:
+        missing = set(CANONICAL_COLUMNS) - set(df.columns)
+        if missing:
+            raise ValueError(f"DataFrame missing canonical columns: {missing}")
+    
+    def _path(self, symbol: str, timeframe: str) -> Path:
+        """Helper to construct the file path for a symbol/timeframe."""
+        return self.root / timeframe.lower() / f"{symbol.upper()}.parquet"
+
+    # Writing
+    def write(self, symbol, timeframe, df) -> None:
+        self._validate_schema(df)
+        path = self._path(symbol, timeframe)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        df.to_parquet(path)
+    
+    def append(self, symbol, timeframe, df) -> None:
+        pass
+
+    # Reading
+    def read(self, symbol, timeframe, start, end) -> pd.DataFrame:
+        pass
+
+    def read_many(self, symbols, timeframe, start, end) -> pd.DataFrame:
+        pass
+
+    # Info
+    def available_symbols(self, timeframe) -> list[str]:
+        pass
+
+    def available_timeframes(self, symbol) -> list[str]:
+        pass
+
+    def date_range(self, symbol, timeframe) -> tuple[str, str]:
+        pass
+
+    def missing_ranges(self, symbol, timeframe, start, end) -> list[tuple[str, str]]:
+        pass
+
+    def delete(self, symbol, timeframe) -> None:
+        pass
+
     def info(self) -> dict:
         pass
