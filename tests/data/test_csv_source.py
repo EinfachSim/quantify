@@ -52,3 +52,33 @@ class TestCSVSource:
         source = CSVSource(tmp_path)
         with pytest.raises(ValueError):
             source.fetch("AAPL", "1d")
+    def test_fetch_many_returns_dict(self, csv_source, sample_ohlcv):
+        tmp_path = csv_source.root
+        sample_ohlcv.to_csv(tmp_path / "1d" / "MSFT.csv", index_label="datetime")
+        result = csv_source.fetch_many(["AAPL", "MSFT"], "1d")
+        assert isinstance(result, dict)
+
+    def test_fetch_many_correct_keys(self, csv_source, sample_ohlcv):
+        tmp_path = csv_source.root
+        sample_ohlcv.to_csv(tmp_path / "1d" / "MSFT.csv", index_label="datetime")
+        result = csv_source.fetch_many(["AAPL", "MSFT"], "1d")
+        assert set(result.keys()) == {"AAPL", "MSFT"}
+
+    def test_fetch_many_correct_data(self, csv_source, sample_ohlcv):
+        result = csv_source.fetch_many(["AAPL"], "1d")
+        pd.testing.assert_frame_equal(result["AAPL"], sample_ohlcv)
+
+    def test_fetch_many_with_start_and_end(self, csv_source, sample_ohlcv):
+        start = str(sample_ohlcv.index[2].date())
+        end = str(sample_ohlcv.index[7].date())
+        result = csv_source.fetch_many(["AAPL"], "1d", start=start, end=end)
+        assert result["AAPL"].index.min() >= pd.Timestamp(start, tz="UTC")
+        assert result["AAPL"].index.max() <= pd.Timestamp(end, tz="UTC")
+
+    def test_fetch_many_empty_symbols_returns_empty(self, csv_source):
+        result = csv_source.fetch_many([], "1d")
+        assert result == {}
+
+    def test_fetch_many_missing_symbol_raises(self, csv_source):
+        with pytest.raises(FileNotFoundError):
+            csv_source.fetch_many(["AAPL", "NONEXISTENT"], "1d")

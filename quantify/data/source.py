@@ -55,16 +55,23 @@ class CSVSource(BaseSource):
             df = df[df.index <= end]
         return df
     
-    def fetch_many(self, symbols, timeframe, start, end) -> dict[str, pd.DataFrame]:
-        pass
+    def fetch_many(self, symbols: list[str], timeframe: str, start=None, end=None) -> dict[str, pd.DataFrame]:
+        if not symbols:
+            return {}
+        
+        dfs = {}
+        for symbol in symbols:
+            dfs[symbol] = self.fetch(symbol, timeframe, start=start, end=end)
+        
+        return dfs
 
     #Discovery
     def available_symbols(self) -> list[str]:
-        pass
+        raise NotImplementedError
 
     def available_timeframes(self) -> list[str]:
-        pass
+        raise NotImplementedError
 
     # Metadata
     def get_asset_info(self, symbol) -> dict:
-        pass
+        raise NotImplementedError
