@@ -2,6 +2,7 @@ from abc import ABC, abstractmethod
 import pandas as pd
 from pathlib import Path
 from quantify.constants import *
+import yfinance
 
 class BaseSource(ABC):
     
@@ -28,6 +29,11 @@ class BaseSource(ABC):
     def get_asset_info(self, symbol) -> dict:
         pass
 
+    def _validate_schema(self, df: pd.DataFrame) -> None:
+        missing = set(CANONICAL_COLUMNS) - set(df.columns)
+        if missing:
+            raise ValueError(f"DataFrame missing canonical columns: {missing}")
+
 class CSVSource(BaseSource):
     def __init__(self, root):
         super().__init__()
@@ -36,11 +42,6 @@ class CSVSource(BaseSource):
     def _path(self, symbol, timeframe):
         path = self.root / timeframe.lower() / f"{symbol.upper()}.csv"
         return path
-
-    def _validate_schema(self, df: pd.DataFrame) -> None:
-        missing = set(CANONICAL_COLUMNS) - set(df.columns)
-        if missing:
-            raise ValueError(f"DataFrame missing canonical columns: {missing}")
 
     #Fetching
     def fetch(self, symbol, timeframe, start=None, end=None) -> pd.DataFrame:
@@ -75,3 +76,45 @@ class CSVSource(BaseSource):
     # Metadata
     def get_asset_info(self, symbol) -> dict:
         raise NotImplementedError
+
+
+class YahooFinanceSource(BaseSource):
+
+    def __init__(self):
+        super().__init__()
+    
+    #Fetching
+    def fetch(self, symbol, timeframe, start=None, end=None) -> pd.DataFrame:
+        df = yfinance.download(symbol, start=start, end=end, interval=timeframe)
+        if df.empty:
+            raise ValueError(f"No data returned for {symbol} / {timeframe}")
+        
+        if isinstance(df.columns, pd.MultiIndex):
+            df.columns = df.columns.droplevel(1)
+        
+        df.columns = df.columns.str.lower()
+
+        if df.index.tz is None:
+            df.index = df.index.tz_localize("UTC")
+        else:
+            df.index = df.index.tz_convert("UTC")
+        
+        df["vwap"] = (df["high"] + df["low"] + df["close"]) / 3
+        df.index.name = None
+        df = df[CANONICAL_COLUMNS]
+        self._validate_schema(df)
+        return df
+    
+    def fetch_many(self, symbols, timeframe, start, end) -> dict[str, pd.DataFrame]:
+        pass
+
+    #Discovery
+    def available_symbols(self) -> list[str]:
+        pass
+
+    def available_timeframes(self) -> list[str]:
+        pass
+
+    # Metadata
+    def get_asset_info(self, symbol) -> dict:
+        pass

@@ -1,4 +1,5 @@
 from quantify.data.store import ParquetStore
+from quantify.data.source import YahooFinanceSource
 import pandas as pd
 import numpy as np
 
@@ -20,3 +21,7 @@ store.write("GOOGLE", "1d", df)
 store.read_many(["AAPL","GOOGLE"], "1d")
 
 store.info()
+
+source = YahooFinanceSource()
+
+source.fetch("AAPL", "1d", start="2024-01-01", end="2024-12-30")
