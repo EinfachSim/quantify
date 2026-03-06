@@ -132,7 +132,7 @@ class ParquetStore(BaseStore):
         if len(missing_dates) == 0:
             return []
         gaps = np.diff(missing_dates)
-        split_points = np.where(gaps > pd.Timedelta(expected_range.freq))[0] + 1
+        split_points = np.where(gaps > pd.Timedelta(timeframe.lower()))[0] + 1
         groups = np.split(missing_dates, split_points)
         ranges = [(g[0], g[-1]) for g in groups if len(g) > 0]
         return ranges
