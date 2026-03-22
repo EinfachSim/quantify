@@ -11,7 +11,8 @@ dependencies = [
     "pyarrow",
     "yfinance",
     "exchange-calendars",
-    "matplotlib"
+    "matplotlib",
+    "mplfinance"
 ]
 
 [tool.setuptools.packages.find]

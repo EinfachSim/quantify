@@ -102,3 +102,53 @@ class VolumeMomentumFeature(BaseFeature):
         vol = df.groupby(level=0)["volume"].transform(volume_calc)
 
         return vol.rename(self.name).to_frame()
+
+class PriceToMAFeature(BaseFeature):
+    def __init__(self, period=20):
+        self.period = period
+
+    @property
+    def name(self):
+        return f"price_to_ma_{self.period}"
+
+    def compute(self, df):
+        def price_to_ma(close):
+            moving_average = close.rolling(self.period).mean()
+            return close/moving_average - 1
+        pma = df.groupby(level=0)["close"].transform(price_to_ma)
+
+        return pma.rename(self.name).to_frame()
+    
+
+class CandleStructureFeature(BaseFeature):
+    def __init__(self):
+        pass
+    @property
+    def name(self):
+        return f"candles"
+
+    def compute(self, df):
+        """
+        body_size     = abs(close - open) / close        
+        lower_wick    = (min(open, close) - low) / close 
+        upper_wick    = (high - max(open, close)) / close 
+        body_position = (open - low) / (high - low)
+        """
+        def candle_calc(df):
+            close = df["close"]
+            open = df["open"]
+            low = df["low"]
+            high = df["high"]
+
+            body_size = abs(close-open) / close
+            lower_wick = (df[["open", "close"]].min(axis=1) - low) / close
+            upper_wick = (high - df[["open", "close"]].max(axis=1)) / close
+            body_position = (open-low)/(high-low)
+
+            return pd.DataFrame({
+                "body_size": body_size,
+                "lower_wick": lower_wick,
+                "upper_wick": upper_wick,
+                "body_position": body_position,
+            })
+        return df.groupby(level=0, group_keys=False).apply(candle_calc)

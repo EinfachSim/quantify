@@ -88,9 +88,63 @@ axes[2].axhline(0, color="black", linewidth=0.5, linestyle="--")
 axes[2].set_title("Volume Momentum (20 days)")
 axes[2].legend()
 
-plt.tight_layout()
-plt.show()
+from quantify.features.technical import PriceToMAFeature
 
+pma_20 = PriceToMAFeature(period=20)
+pma_50 = PriceToMAFeature(period=50)
+df["price_to_ma_20"] = pma_20.compute(df)
+df["price_to_ma_50"] = pma_50.compute(df)
+
+aapl = df.loc["AAPL"]
+
+fig, axes = plt.subplots(2, 1, figsize=(14, 8), sharex=True)
+
+axes[0].plot(aapl.index, aapl["close"], color="black", label="Close", linewidth=1)
+axes[0].plot(aapl.index, aapl["close"].rolling(20).mean(), color="blue", label="MA 20", linewidth=0.8, linestyle="--")
+axes[0].plot(aapl.index, aapl["close"].rolling(50).mean(), color="red", label="MA 50", linewidth=0.8, linestyle="--")
+axes[0].set_title("AAPL Close Price with Moving Averages")
+axes[0].legend()
+
+axes[1].plot(aapl.index, aapl["price_to_ma_20"], color="blue", label="Price to MA 20", linewidth=1)
+axes[1].plot(aapl.index, aapl["price_to_ma_50"], color="red", label="Price to MA 50", linewidth=1)
+axes[1].axhline(0, color="black", linewidth=0.5, linestyle="--")
+axes[1].set_title("Price to Moving Average (0 = at MA, positive = above MA)")
+axes[1].legend()
+
+from quantify.features.technical import CandleStructureFeature
+
+candle = CandleStructureFeature()
+candle_df = candle.compute(df)
+aapl = df.loc["AAPL"]
+aapl_candle = candle_df.loc["AAPL"]
+
+import mplfinance as mpf
+
+aapl = df.loc["AAPL"].copy()
+aapl.index = aapl.index.tz_localize(None)  # mplfinance doesn't like tz-aware
+
+# add candle structure as subplots
+aapl_candle = candle_df.loc["AAPL"].copy()
+aapl_candle.index = aapl_candle.index.tz_localize(None)
+
+# slice to last 60 days so candles are visible
+aapl_60 = aapl.iloc[-60:]
+aapl_candle_60 = aapl_candle.iloc[-60:]
+
+add_plots = [
+    mpf.make_addplot(aapl_candle_60["body_size"], panel=2, color="blue", ylabel="Body Size"),
+    mpf.make_addplot(aapl_candle_60["body_position"], panel=3, color="purple", ylabel="Body Position"),
+]
+
+mpf.plot(
+    aapl_60,
+    type="candle",
+    style="charles",
+    title="AAPL Candlestick Chart",
+    volume=True,        # volume gets panel 1 automatically
+    addplot=add_plots,  # your features start at panel 2
+    figsize=(14, 12),
+)
 
 plt.tight_layout()
 plt.show()
