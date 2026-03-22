@@ -1,5 +1,6 @@
 TODO
 
-- [ ] Volume momentum
-- [ ] Volatility
-- [ ] Price to moving average ratio
+- [X] Volume momentum
+- [X] Volatility
+- [X] Price to moving average ratio
+- [ ] Normalizer
