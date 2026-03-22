@@ -150,3 +150,208 @@ class TestBollingerBandsFeature:
         result = feature.compute(multi_index_ohlcv)
         assert isinstance(result.index, pd.MultiIndex)
         assert result.index.nlevels == 2
+
+class TestVolatilityFeature:
+
+    @pytest.fixture
+    def feature(self):
+        return VolatilityFeature(period=3)
+
+    def test_name(self, feature):
+        assert feature.name == "vol_3"
+
+    def test_compute_returns_dataframe(self, feature, multi_index_ohlcv):
+        result = feature.compute(multi_index_ohlcv)
+        assert isinstance(result, pd.DataFrame)
+
+    def test_compute_correct_column_name(self, feature, multi_index_ohlcv):
+        result = feature.compute(multi_index_ohlcv)
+        assert "vol_3" in result.columns
+
+    def test_compute_warmup_is_nan(self, feature, multi_index_ohlcv):
+        result = feature.compute(multi_index_ohlcv)
+        assert result.loc["AAPL"].iloc[:3]["vol_3"].isna().all()
+
+    def test_compute_after_warmup_not_nan(self, feature, multi_index_ohlcv):
+        result = feature.compute(multi_index_ohlcv)
+        assert result.loc["AAPL"].iloc[3:]["vol_3"].notna().all()
+
+    def test_compute_values_positive(self, feature, multi_index_ohlcv):
+        result = feature.compute(multi_index_ohlcv)
+        valid = result["vol_3"].dropna()
+        assert (valid >= 0).all()
+
+    def test_compute_symbols_independent(self, feature, multi_index_ohlcv):
+        result_multi = feature.compute(multi_index_ohlcv)
+        aapl_only = multi_index_ohlcv.loc[["AAPL"]]
+        result_single = feature.compute(aapl_only)
+        pd.testing.assert_series_equal(
+            result_multi.loc["AAPL"]["vol_3"],
+            result_single.loc["AAPL"]["vol_3"]
+        )
+
+    def test_compute_multiple_symbols(self, feature, multi_index_ohlcv):
+        result = feature.compute(multi_index_ohlcv)
+        symbols = result.index.get_level_values(0).unique()
+        assert set(symbols) == {"AAPL", "MSFT"}
+
+class TestVolumeMomentumFeature:
+
+    @pytest.fixture
+    def feature(self):
+        return VolumeMomentumFeature(period=3)
+
+    def test_name(self, feature):
+        assert feature.name == "volume_momentum_3"
+
+    def test_compute_returns_dataframe(self, feature, multi_index_ohlcv):
+        result = feature.compute(multi_index_ohlcv)
+        assert isinstance(result, pd.DataFrame)
+
+    def test_compute_correct_column_name(self, feature, multi_index_ohlcv):
+        result = feature.compute(multi_index_ohlcv)
+        assert "volume_momentum_3" in result.columns
+
+    def test_compute_warmup_is_nan(self, feature, multi_index_ohlcv):
+        result = feature.compute(multi_index_ohlcv)
+        assert result.loc["AAPL"].iloc[:2]["volume_momentum_3"].isna().all()
+
+    def test_compute_after_warmup_not_nan(self, feature, multi_index_ohlcv):
+        result = feature.compute(multi_index_ohlcv)
+        assert result.loc["AAPL"].iloc[2:]["volume_momentum_3"].notna().all()
+
+    def test_compute_symbols_independent(self, feature, multi_index_ohlcv):
+        result_multi = feature.compute(multi_index_ohlcv)
+        aapl_only = multi_index_ohlcv.loc[["AAPL"]]
+        result_single = feature.compute(aapl_only)
+        pd.testing.assert_series_equal(
+            result_multi.loc["AAPL"]["volume_momentum_3"],
+            result_single.loc["AAPL"]["volume_momentum_3"]
+        )
+
+    def test_compute_multiple_symbols(self, feature, multi_index_ohlcv):
+        result = feature.compute(multi_index_ohlcv)
+        symbols = result.index.get_level_values(0).unique()
+        assert set(symbols) == {"AAPL", "MSFT"}
+
+    def test_compute_mean_volume_returns_zero(self, feature, multi_index_ohlcv):
+        # if volume equals its rolling mean every day, result should be 0
+        flat_volume = multi_index_ohlcv.copy()
+        flat_volume["volume"] = 1000.0
+        result = feature.compute(flat_volume)
+        valid = result["volume_momentum_3"].dropna()
+        assert (valid == 0).all()
+
+class TestPriceToMAFeature:
+
+    @pytest.fixture
+    def feature(self):
+        return PriceToMAFeature(period=3)
+
+    def test_name(self, feature):
+        assert feature.name == "price_to_ma_3"
+
+    def test_compute_returns_dataframe(self, feature, multi_index_ohlcv):
+        result = feature.compute(multi_index_ohlcv)
+        assert isinstance(result, pd.DataFrame)
+
+    def test_compute_correct_column_name(self, feature, multi_index_ohlcv):
+        result = feature.compute(multi_index_ohlcv)
+        assert "price_to_ma_3" in result.columns
+
+    def test_compute_warmup_is_nan(self, feature, multi_index_ohlcv):
+        result = feature.compute(multi_index_ohlcv)
+        assert result.loc["AAPL"].iloc[:2]["price_to_ma_3"].isna().all()
+
+    def test_compute_after_warmup_not_nan(self, feature, multi_index_ohlcv):
+        result = feature.compute(multi_index_ohlcv)
+        assert result.loc["AAPL"].iloc[2:]["price_to_ma_3"].notna().all()
+
+    def test_compute_correct_values(self, feature, multi_index_ohlcv):
+        result = feature.compute(multi_index_ohlcv)
+        aapl_close = multi_index_ohlcv.loc["AAPL"]["close"]
+        expected = aapl_close / aapl_close.rolling(3).mean() - 1
+        pd.testing.assert_series_equal(
+            result.loc["AAPL"]["price_to_ma_3"],
+            expected,
+            check_names=False
+        )
+
+    def test_compute_flat_price_returns_zero(self, feature, multi_index_ohlcv):
+        flat = multi_index_ohlcv.copy()
+        flat["close"] = 100.0
+        result = feature.compute(flat)
+        valid = result["price_to_ma_3"].dropna()
+        assert (valid == 0).all()
+
+    def test_compute_symbols_independent(self, feature, multi_index_ohlcv):
+        result_multi = feature.compute(multi_index_ohlcv)
+        aapl_only = multi_index_ohlcv.loc[["AAPL"]]
+        result_single = feature.compute(aapl_only)
+        pd.testing.assert_series_equal(
+            result_multi.loc["AAPL"]["price_to_ma_3"],
+            result_single.loc["AAPL"]["price_to_ma_3"]
+        )
+
+    def test_compute_multiple_symbols(self, feature, multi_index_ohlcv):
+        result = feature.compute(multi_index_ohlcv)
+        symbols = result.index.get_level_values(0).unique()
+        assert set(symbols) == {"AAPL", "MSFT"}
+    
+
+class TestCandleStructureFeature:
+
+    @pytest.fixture
+    def feature(self):
+        return CandleStructureFeature()
+
+    def test_name(self, feature):
+        assert feature.name == "candles"
+
+    def test_compute_returns_dataframe(self, feature, multi_index_ohlcv):
+        result = feature.compute(multi_index_ohlcv)
+        assert isinstance(result, pd.DataFrame)
+
+    def test_compute_correct_columns(self, feature, multi_index_ohlcv):
+        result = feature.compute(multi_index_ohlcv)
+        assert "body_size" in result.columns
+        assert "lower_wick" in result.columns
+        assert "upper_wick" in result.columns
+        assert "body_position" in result.columns
+
+    def test_compute_no_warmup(self, feature, multi_index_ohlcv):
+        result = feature.compute(multi_index_ohlcv)
+        assert result.loc["AAPL"].notna().all().all()
+
+    def test_body_position_between_0_and_1(self, feature, multi_index_ohlcv):
+        result = feature.compute(multi_index_ohlcv)
+        assert (result["body_position"] >= 0).all()
+        assert (result["body_position"] <= 1).all()
+
+    def test_body_size_positive(self, feature, multi_index_ohlcv):
+        result = feature.compute(multi_index_ohlcv)
+        assert (result["body_size"] >= 0).all()
+
+    def test_wicks_positive(self, feature, multi_index_ohlcv):
+        result = feature.compute(multi_index_ohlcv)
+        assert (result["lower_wick"] >= 0).all()
+        assert (result["upper_wick"] >= 0).all()
+
+    def test_compute_symbols_independent(self, feature, multi_index_ohlcv):
+        result_multi = feature.compute(multi_index_ohlcv)
+        aapl_only = multi_index_ohlcv.loc[["AAPL"]]
+        result_single = feature.compute(aapl_only)
+        pd.testing.assert_frame_equal(
+            result_multi.loc["AAPL"],
+            result_single.loc["AAPL"]
+        )
+
+    def test_compute_multiple_symbols(self, feature, multi_index_ohlcv):
+        result = feature.compute(multi_index_ohlcv)
+        symbols = result.index.get_level_values(0).unique()
+        assert set(symbols) == {"AAPL", "MSFT"}
+
+    def test_correct_index_structure(self, feature, multi_index_ohlcv):
+        result = feature.compute(multi_index_ohlcv)
+        assert isinstance(result.index, pd.MultiIndex)
+        assert result.index.nlevels == 2
