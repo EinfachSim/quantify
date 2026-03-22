@@ -68,3 +68,20 @@ class BollingerBandsFeature(BaseFeature):
                 f"bb_position_{self.period}": bb_position,
             })
         return df.groupby(level=0, group_keys=False)["close"].apply(bb_calc)
+
+class VolatilityFeature(BaseFeature):
+    def __init__(self, period=20):
+        self.period = period
+
+    @property
+    def name(self):
+        return f"vol_{self.period}"
+
+    def compute(self, df):
+        def vol_calc(close):
+            daily_returns = close.pct_change(1)
+            vol = daily_returns.rolling(self.period).std()
+            return vol
+        vol = df.groupby(level=0)["close"].transform(vol_calc)
+
+        return vol.rename(self.name).to_frame()

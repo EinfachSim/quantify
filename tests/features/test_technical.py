@@ -150,3 +150,47 @@ class TestBollingerBandsFeature:
         result = feature.compute(multi_index_ohlcv)
         assert isinstance(result.index, pd.MultiIndex)
         assert result.index.nlevels == 2
+
+class TestVolatilityFeature:
+
+    @pytest.fixture
+    def feature(self):
+        return VolatilityFeature(period=3)
+
+    def test_name(self, feature):
+        assert feature.name == "vol_3"
+
+    def test_compute_returns_dataframe(self, feature, multi_index_ohlcv):
+        result = feature.compute(multi_index_ohlcv)
+        assert isinstance(result, pd.DataFrame)
+
+    def test_compute_correct_column_name(self, feature, multi_index_ohlcv):
+        result = feature.compute(multi_index_ohlcv)
+        assert "vol_3" in result.columns
+
+    def test_compute_warmup_is_nan(self, feature, multi_index_ohlcv):
+        result = feature.compute(multi_index_ohlcv)
+        assert result.loc["AAPL"].iloc[:3]["vol_3"].isna().all()
+
+    def test_compute_after_warmup_not_nan(self, feature, multi_index_ohlcv):
+        result = feature.compute(multi_index_ohlcv)
+        assert result.loc["AAPL"].iloc[3:]["vol_3"].notna().all()
+
+    def test_compute_values_positive(self, feature, multi_index_ohlcv):
+        result = feature.compute(multi_index_ohlcv)
+        valid = result["vol_3"].dropna()
+        assert (valid >= 0).all()
+
+    def test_compute_symbols_independent(self, feature, multi_index_ohlcv):
+        result_multi = feature.compute(multi_index_ohlcv)
+        aapl_only = multi_index_ohlcv.loc[["AAPL"]]
+        result_single = feature.compute(aapl_only)
+        pd.testing.assert_series_equal(
+            result_multi.loc["AAPL"]["vol_3"],
+            result_single.loc["AAPL"]["vol_3"]
+        )
+
+    def test_compute_multiple_symbols(self, feature, multi_index_ohlcv):
+        result = feature.compute(multi_index_ohlcv)
+        symbols = result.index.get_level_values(0).unique()
+        assert set(symbols) == {"AAPL", "MSFT"}
