@@ -66,5 +66,31 @@ axes[1].set_title("BB Position (0=lower band, 1=upper band)")
 axes[1].legend()
 
 
+from quantify.features.technical import VolumeMomentumFeature
+
+vol_mom = VolumeMomentumFeature(period=20)
+df["volume_momentum_20"] = vol_mom.compute(df)
+
+aapl = df.loc["AAPL"]
+
+fig, axes = plt.subplots(3, 1, figsize=(14, 10), sharex=True)
+
+axes[0].plot(aapl.index, aapl["close"], color="black", label="Close")
+axes[0].set_title("AAPL Close Price")
+axes[0].legend()
+
+axes[1].bar(aapl.index, aapl["volume"], color="grey", label="Volume", width=0.8)
+axes[1].set_title("Volume")
+axes[1].legend()
+
+axes[2].plot(aapl.index, aapl["volume_momentum_20"], color="blue", label="Volume Momentum 20")
+axes[2].axhline(0, color="black", linewidth=0.5, linestyle="--")
+axes[2].set_title("Volume Momentum (20 days)")
+axes[2].legend()
+
+plt.tight_layout()
+plt.show()
+
+
 plt.tight_layout()
 plt.show()

@@ -194,3 +194,50 @@ class TestVolatilityFeature:
         result = feature.compute(multi_index_ohlcv)
         symbols = result.index.get_level_values(0).unique()
         assert set(symbols) == {"AAPL", "MSFT"}
+
+class TestVolumeMomentumFeature:
+
+    @pytest.fixture
+    def feature(self):
+        return VolumeMomentumFeature(period=3)
+
+    def test_name(self, feature):
+        assert feature.name == "volume_momentum_3"
+
+    def test_compute_returns_dataframe(self, feature, multi_index_ohlcv):
+        result = feature.compute(multi_index_ohlcv)
+        assert isinstance(result, pd.DataFrame)
+
+    def test_compute_correct_column_name(self, feature, multi_index_ohlcv):
+        result = feature.compute(multi_index_ohlcv)
+        assert "volume_momentum_3" in result.columns
+
+    def test_compute_warmup_is_nan(self, feature, multi_index_ohlcv):
+        result = feature.compute(multi_index_ohlcv)
+        assert result.loc["AAPL"].iloc[:2]["volume_momentum_3"].isna().all()
+
+    def test_compute_after_warmup_not_nan(self, feature, multi_index_ohlcv):
+        result = feature.compute(multi_index_ohlcv)
+        assert result.loc["AAPL"].iloc[2:]["volume_momentum_3"].notna().all()
+
+    def test_compute_symbols_independent(self, feature, multi_index_ohlcv):
+        result_multi = feature.compute(multi_index_ohlcv)
+        aapl_only = multi_index_ohlcv.loc[["AAPL"]]
+        result_single = feature.compute(aapl_only)
+        pd.testing.assert_series_equal(
+            result_multi.loc["AAPL"]["volume_momentum_3"],
+            result_single.loc["AAPL"]["volume_momentum_3"]
+        )
+
+    def test_compute_multiple_symbols(self, feature, multi_index_ohlcv):
+        result = feature.compute(multi_index_ohlcv)
+        symbols = result.index.get_level_values(0).unique()
+        assert set(symbols) == {"AAPL", "MSFT"}
+
+    def test_compute_mean_volume_returns_zero(self, feature, multi_index_ohlcv):
+        # if volume equals its rolling mean every day, result should be 0
+        flat_volume = multi_index_ohlcv.copy()
+        flat_volume["volume"] = 1000.0
+        result = feature.compute(flat_volume)
+        valid = result["volume_momentum_3"].dropna()
+        assert (valid == 0).all()

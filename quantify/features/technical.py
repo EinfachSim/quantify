@@ -85,3 +85,20 @@ class VolatilityFeature(BaseFeature):
         vol = df.groupby(level=0)["close"].transform(vol_calc)
 
         return vol.rename(self.name).to_frame()
+    
+class VolumeMomentumFeature(BaseFeature):
+    def __init__(self, period=20):
+        self.period = period
+
+    @property
+    def name(self):
+        return f"volume_momentum_{self.period}"
+
+    def compute(self, df):
+        def volume_calc(vol):
+            rolling_volume_mean = vol.rolling(self.period).mean()
+            
+            return vol / rolling_volume_mean - 1
+        vol = df.groupby(level=0)["volume"].transform(volume_calc)
+
+        return vol.rename(self.name).to_frame()
